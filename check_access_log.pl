@@ -123,7 +123,7 @@ my $prior_logdate="";    # Set prior lines' logdate to nothing
 while (<BW>) {
     my $line_ref    = parse($_);
     # skip tests from load-balancers
-    next if ($line_ref->{host} =~ m/^192\.168\.30\.1/);                                                               
+    # next if ($line_ref->{host} =~ m/^192\.168\.30\.1/);                                                               
     if ( ( $lines %1000 == 0 ) and $np->opts->verbose) {
         print STDERR "line: $lines\n";
         print $_;
@@ -145,6 +145,7 @@ while (<BW>) {
         }
         $status_score{'other'}++ if ( $matched eq 'false' );
     } else {
+        $lines--;
         last;                       # break out of <BW>;
     }
 }

@@ -1,0 +1,26 @@
+check_access_log
+
+Property of pburkholder.
+
+Original release:
+http://blog.pburkholder.com/2010/10/24/graphing-access-log-status-with-pnp4nagios/
+
+This is a nagios plugin that reads the apache httpd access logs and creates a breakdown based on response codes.
+It also provides the average troughput, in bytes per check_period.
+
+The plugins comes with a template for pnp4nagios; I've tested it up to the 0.6.17, and it is working.
+
+Requirements:
+- File::ReadBackwards, that allows the script to read backwards until the time period criterion is met
+- Date::Manip
+- Nagios::Plugin
+
+Usage: check_log3.pl [ -v|--verbose ] -l|--logfile=file -m|--m=minutes [ -c|--critical=<threshold>(20) ] [ -w|--warning=<threshold>(10) ] [ -a|--activity=number_of_lines (100) ]
+
+Where: 
+
+- logfile is the path to your httpd access log;
+- minutes is how far back from the present you want to parse your log files (defaults to 5 minutes);
+- c represents the percentage of non-200 statuses that switch the outcome to critical
+- w represents the percentage of non-200 statuses that switch the outcome to warning
+- activity tells the plugin to evaluate the two percentages only if the number of lines parsed exceeds this number.

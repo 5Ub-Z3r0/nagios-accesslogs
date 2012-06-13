@@ -150,8 +150,11 @@ while (<BW>) {
     }
 }
 
-my $failure_rate=
-    sprintf("%0.2f", 100 - (($status_score{'20X'} + $status_score{'30X'})/$lines) * 100.0);
+my $failure_rate=0;
+if ($lines != 0) {
+    $failure_rate=
+      sprintf("%0.2f", 100 - (($status_score{'20X'} + $status_score{'30X'})/$lines) * 100.0);
+}
 
 $np->add_perfdata(
     label   => 'Total',
@@ -198,3 +201,4 @@ $np->nagios_exit(
 	 return_code => $return_code,
 	 message => "FAILURE_RATE $failure_rate" 
 );
+

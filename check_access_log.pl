@@ -103,7 +103,7 @@ tie *BW, 'File::ReadBackwards', $log_file or
     $np->nagios_die("can't read $log_file $!") ;
 
 print STDERR "Opening $log_file\n" if $np->opts->verbose;
-print $np->opts->exclude." \n";
+
 # Start looping backward thru logfile
 my $prior_logdate="";    # Set prior lines' logdate to nothing
 while (<BW>) {

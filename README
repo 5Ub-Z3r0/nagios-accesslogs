@@ -15,7 +15,7 @@ Requirements:
 - Date::Manip
 - Nagios::Plugin
 
-Usage: check_log3.pl [ -v|--verbose ] -l|--logfile=file -m|--m=minutes [ -c|--critical=<threshold>(20) ] [ -w|--warning=<threshold>(10) ] [ -a|--activity=number_of_lines (100) ]
+Usage: check_log3.pl [ -v|--verbose ] -l|--logfile=file -m|--m=minutes [ -c|--critical=<threshold>(20) ] [ -w|--warning=<threshold>(10) ] [ -a|--activity=number_of_lines (100) ] [ -e|--exclude=<subpath> ]
 
 Where: 
 
@@ -23,4 +23,6 @@ Where:
 - minutes is how far back from the present you want to parse your log files (defaults to 5 minutes);
 - c represents the percentage of non-200 statuses that switch the outcome to critical
 - w represents the percentage of non-200 statuses that switch the outcome to warning
-- activity tells the plugin to evaluate the two percentages only if the number of lines parsed exceeds this number.
+- activity tells the plugin to evaluate the two percentages only if the number of lines parsed exceeds this number
+- exclude is a subpath of the original request for which 401 should be treated as 200 (for example, svn behind basic authentication).
+

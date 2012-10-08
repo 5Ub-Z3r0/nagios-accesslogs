@@ -2,13 +2,15 @@
 
 # This plugin processes a logfile ( -l ) in the httpd common access format and
 # report on all status entries for last ( -m ) minutes
+# Optionally, it can treat 401 as successes for a specified location ( -e ),
+# which is usefult if you have something behind http basic authentication
 use strict;
 use warnings;
 
 use File::ReadBackwards;
 use Date::Manip;
 use Nagios::Plugin;
-use vars qw($VERSION $PROGNAME  $verbose $warn $critical $timeout $result);
+use vars qw($VERSION $PROGNAME  $verbose $warn $critical $timeout $result $exclude);
 $VERSION = '1.0';
 
 # get the base name of this script for use in the examples
@@ -16,31 +18,10 @@ use File::Basename;
 $PROGNAME = basename($0);
 
 sub parse {
-# Lifted from
-# http://cpansearch.perl.org/src/MSLAGLE/Parse-AccessLogEntry-0.06/AccessLogEntry.pm
-        my $Line=shift;
-        my $Ref;
-        my $Rest;
-        my $R2;
-        ($Ref->{host},$Ref->{user},$Ref->{date},$Rest)= $Line =~ m,^([^\s]+)\s+-\s+([^ ]+)\s+\[(.*?)\]\s+(.*),;
-        my @Dsplit=split(/\s+/,$Ref->{date});
-	    $Ref->{diffgmt}=$Dsplit[1];
-	    my @Ds2=split(/\:/,$Dsplit[0],2);
-        $Ref->{date}=$Ds2[0];
-        $Ref->{time}=$Ds2[1];
-        if ($Rest) {
-                ($Ref->{rtype},$Ref->{file},$Ref->{proto},$Ref->{code},$Ref->{bytes},$R2)=split(/\s/,$Rest,6);
-# Removing following processing improves run by 10% - PDB
-#		$Ref->{rtype}=~tr/\"//d;
-#		$Ref->{proto}=~tr/\"//d;
-#                if ($R2)
-#                {
-#                        my @Split=split(/\"/,$R2);
-#                        $Ref->{refer}=$Split[1];
-#                        $Ref->{agent}=$Split[3];
-#                }
-        }
-        return $Ref;
+  my $Line=shift;
+  my $Ref;
+  ($Ref->{host},$Ref->{ident_user},$Ref->{auth_user},$Ref->{date},$Ref->{time},$Ref->{timezone},$Ref->{method},$Ref->{request},$Ref->{proto},$Ref->{status},$Ref->{bytes}, $Ref->{rvalue}, $Ref->{user_agent}) = /^(\S+)\ (\S+)\ (\S+)\ \[([^:]+):(\d+:\d+:\d+)\ ([^\]]+)]\ "(\S+)\ (.+?)\ (\S+)"\ (\S+)\ (\S+)\ "(\S+)"\ "(.+?)"$/x;
+  return $Ref;
 }
 
 my %regex_for = (
@@ -61,7 +42,7 @@ my $np = Nagios::Plugin->new(
     shortname => "ACCESS_STATUS",  
     usage => "Usage: %s [ -v|--verbose ] -l|--logfile=file -m|--m=minutes " .
     "[ -c|--critical=<threshold>(20)  ] [ -w|--warning=<threshold>(10) ] ".
-    "[ -a|--activity=number_of_lines (100) ]",
+    "[ -a|--activity=number_of_lines (100) ] [ -e|--exclude=<request_subpath> ]",
     blurb => "Report status summary for the last minutes of an httpd access log"
 );
 
@@ -96,6 +77,11 @@ $np->add_arg(
 	help => qq{-a, --activity=INTEGER Only go to critical or warning if log activity exceeds threshold},
 	default => 100,
 );
+$np->add_arg(
+	spec => 'exclude|e=s',
+	help => qq{-e, --exclude=STRING Treat 401 in this subpath as successes (200)},
+	default => undef,
+);
 $np->getopts;
 
 my $threshold = $np->set_thresholds(
@@ -117,7 +103,7 @@ tie *BW, 'File::ReadBackwards', $log_file or
     $np->nagios_die("can't read $log_file $!") ;
 
 print STDERR "Opening $log_file\n" if $np->opts->verbose;
-
+print $np->opts->exclude." \n";
 # Start looping backward thru logfile
 my $prior_logdate="";    # Set prior lines' logdate to nothing
 while (<BW>) {
@@ -132,10 +118,14 @@ while (<BW>) {
     my $logdate     = $line_ref->{date} . " " . $line_ref->{time};
     if ( $logdate eq $prior_logdate || ParseDate($logdate) gt $start ) {
         $prior_logdate = $logdate;
-        my $status = $line_ref->{code};
+        my $status = $line_ref->{status};
         print $_ if (($status eq '-' ) and  $np->opts->verbose);
         $matched='false';
         $bytes_served += $line_ref->{bytes} if ($line_ref->{bytes} ne '-');
+        # If exclude arg is defined, status is 401 and rtype matches, mark as 200
+        if ( (defined($np->opts->exclude)) && ($status eq '401' ) && ( index($line_ref->{request},$np->opts->exclude,0)==0)){
+                $status = '200';
+        }
         foreach my $status_key (keys %regex_for) {
             if ( $status =~ m/$regex_for{$status_key}/x ) {
                 $status_score{$status_key}++;
